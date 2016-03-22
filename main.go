@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/peterbourgon/g2s"
 )
 
 const (
@@ -15,6 +15,10 @@ const (
 	bits        = 2048
 	timeout     = 500 * time.Millisecond
 	concurrency = 5
+)
+
+var (
+	statsd, err = g2s.Dial("udp", "statsd-server:8125")
 )
 
 func GeneratePrimes(ch chan<- *big.Int) {
@@ -31,11 +35,8 @@ func MakeHandler(ch <-chan *big.Int) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		status := http.StatusOK
 		defer func(begun time.Time) {
-			logrus.WithFields(logrus.Fields{
-				"remote":   r.RemoteAddr,
-				"status":   status,
-				"duration": time.Since(begun),
-			}).Info("Prime request served.")
+			statsd.Timing(1, "prime.duration", time.Since(begun))
+			statsd.Counter(1, fmt.Sprintf("prime.counter.%d", status), 1)
 		}(time.Now())
 		select {
 		case p := <-ch:
