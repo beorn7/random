@@ -6,6 +6,8 @@ import (
 	"math/big"
 	"net/http"
 	"time"
+
+	"github.com/Sirupsen/logrus"
 )
 
 const (
@@ -27,14 +29,23 @@ func GeneratePrimes(ch chan<- *big.Int) {
 
 func MakeHandler(ch <-chan *big.Int) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		status := http.StatusOK
+		defer func(begun time.Time) {
+			logrus.WithFields(logrus.Fields{
+				"remote":   r.RemoteAddr,
+				"status":   status,
+				"duration": time.Since(begun),
+			}).Info("Prime request served.")
+		}(time.Now())
 		select {
 		case p := <-ch:
 			fmt.Fprintln(w, p.Text(16))
 		case <-time.After(timeout):
+			status = http.StatusServiceUnavailable
 			http.Error(
 				w,
 				fmt.Sprint("timeout reached after ", timeout),
-				http.StatusServiceUnavailable,
+				status,
 			)
 		}
 	}
