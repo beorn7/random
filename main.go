@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/peterbourgon/g2s"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 const (
@@ -18,7 +18,17 @@ const (
 )
 
 var (
-	statsd, err = g2s.Dial("udp", "statsd-server:8125")
+	duration = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "prime_request_duration_seconds",
+		Help: "Duration of the last prime request.",
+	})
+	counter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "prime_requests_total",
+			Help: "Total number of prime requests.",
+		},
+		[]string{"status"},
+	)
 )
 
 func GeneratePrimes(ch chan<- *big.Int) {
@@ -35,8 +45,10 @@ func MakeHandler(ch <-chan *big.Int) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		status := http.StatusOK
 		defer func(begun time.Time) {
-			statsd.Timing(1, "prime.duration", time.Since(begun))
-			statsd.Counter(1, fmt.Sprintf("prime.counter.%d", status), 1)
+			duration.Set(time.Since(begun).Seconds())
+			counter.With(prometheus.Labels{
+				"status": fmt.Sprint(status),
+			}).Inc()
 		}(time.Now())
 		select {
 		case p := <-ch:
@@ -58,5 +70,6 @@ func main() {
 		go GeneratePrimes(ch)
 	}
 	http.HandleFunc("/prime", MakeHandler(ch))
+	http.Handle("/metrics", prometheus.Handler())
 	http.ListenAndServe(":8080", nil)
 }
