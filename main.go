@@ -31,6 +31,11 @@ var (
 	)
 )
 
+func init() {
+	prometheus.MustRegister(duration)
+	prometheus.MustRegister(counter)
+}
+
 func GeneratePrimes(ch chan<- *big.Int) {
 	for {
 		p, err := rand.Prime(rand.Reader, bits)
