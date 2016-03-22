@@ -18,9 +18,9 @@ const (
 )
 
 var (
-	duration = prometheus.NewGauge(prometheus.GaugeOpts{
+	duration = prometheus.NewHistogram(prometheus.HistogramOpts{
 		Name: "prime_request_duration_seconds",
-		Help: "Duration of the last prime request.",
+		Help: "Histogram of the prime request duration.",
 	})
 	counter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
@@ -50,7 +50,7 @@ func MakeHandler(ch <-chan *big.Int) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		status := http.StatusOK
 		defer func(begun time.Time) {
-			duration.Set(time.Since(begun).Seconds())
+			duration.Observe(time.Since(begun).Seconds())
 			counter.With(prometheus.Labels{
 				"status": fmt.Sprint(status),
 			}).Inc()
