@@ -9,9 +9,10 @@ import (
 )
 
 const (
-	bufferSize = 10
-	bits       = 2048
-	timeout    = 500 * time.Millisecond
+	bufferSize  = 10
+	bits        = 2048
+	timeout     = 500 * time.Millisecond
+	concurrency = 5
 )
 
 func GeneratePrimes(ch chan<- *big.Int) {
@@ -41,7 +42,9 @@ func MakeHandler(ch <-chan *big.Int) http.HandlerFunc {
 
 func main() {
 	ch := make(chan *big.Int, bufferSize)
-	go GeneratePrimes(ch)
+	for i := 0; i < concurrency; i++ {
+		go GeneratePrimes(ch)
+	}
 	http.HandleFunc("/prime", MakeHandler(ch))
 	http.ListenAndServe(":8080", nil)
 }
