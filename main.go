@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/rand"
+	"flag"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -29,6 +30,9 @@ var (
 		},
 		[]string{"status"},
 	)
+
+	addr  = flag.String("addr", ":8080", "Address to listen to.")
+	delay = flag.Duration("delay", 0, "Delay to be added to each request.")
 )
 
 func init() {
@@ -55,6 +59,7 @@ func MakeHandler(ch <-chan *big.Int) http.HandlerFunc {
 				"status": fmt.Sprint(status),
 			}).Inc()
 		}(time.Now())
+		time.Sleep(*delay)
 		select {
 		case p := <-ch:
 			fmt.Fprintln(w, p.Text(16))
@@ -70,11 +75,12 @@ func MakeHandler(ch <-chan *big.Int) http.HandlerFunc {
 }
 
 func main() {
+	flag.Parse()
 	ch := make(chan *big.Int, bufferSize)
 	for i := 0; i < concurrency; i++ {
 		go GeneratePrimes(ch)
 	}
 	http.HandleFunc("/prime", MakeHandler(ch))
 	http.Handle("/metrics", prometheus.Handler())
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServe(*addr, nil)
 }
