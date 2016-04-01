@@ -19,13 +19,13 @@ const (
 
 var (
 	duration = prometheus.NewHistogram(prometheus.HistogramOpts{
-		Name: "prime_request_duration_seconds",
-		Help: "Histogram of the prime request duration.",
+		Name: "http_request_duration_seconds",
+		Help: "Histogram of the HTTP request durations.",
 	})
 	counter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "prime_requests_total",
-			Help: "Total number of prime requests.",
+			Name: "http_requests_total",
+			Help: "Total number of HTTP requests.",
 		},
 		[]string{"status"},
 	)
@@ -75,6 +75,6 @@ func main() {
 		go GeneratePrimes(ch)
 	}
 	http.HandleFunc("/prime", MakeHandler(ch))
-	http.Handle("/metrics", prometheus.Handler())
+	http.Handle("/metrics", prometheus.UninstrumentedHandler())
 	http.ListenAndServe(":8080", nil)
 }
